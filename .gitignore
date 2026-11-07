@@ -29,3 +29,4 @@ serve-local.pl
 extracted_project/
 
 *.pid
+_orig/
