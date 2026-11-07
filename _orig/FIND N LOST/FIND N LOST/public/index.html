@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lost N Found — Lost something? Let’s bring it home.</title>
+  <meta name="description" content="A community marketplace where people report lost and found belongings, discover possible matches, and safely reunite items with their owners." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body data-page="home" data-nav="explore">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow"><span class="dot-live"></span> Community-powered lost &amp; found</span>
+          <h1>Lost something?<br />Let’s bring it <em>home</em>.</h1>
+          <p class="hero-lead">A community that helps lost belongings find their way back. Report what you lost or found, get matched by sight and detail, and arrange a safe handover.</p>
+          <form class="hero-search" action="/explore" method="get" role="search">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.3-3.3"/></svg>
+            <input type="search" name="q" placeholder="Try &ldquo;black wallet near Mysore railway station&rdquo;" aria-label="Search lost and found items" />
+            <button class="btn btn-primary" type="submit">Search</button>
+          </form>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/post?type=lost">Report something lost</a>
+            <a class="btn btn-outline btn-lg" href="/post?type=found">Report something found</a>
+          </div>
+          <div class="hero-stats">
+            <div><strong data-stat="listings">&mdash;</strong><span>Items listed</span></div>
+            <div><strong data-stat="reunited">&mdash;</strong><span>Verified reunions</span></div>
+            <div><strong data-stat="members">&mdash;</strong><span>Community members</span></div>
+            <div><strong data-stat="cities">&mdash;</strong><span>Cities covered</span></div>
+          </div>
+        </div>
+        <div class="hero-collage" id="hero-collage" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>Recently reported</h2>
+            <p>Freshly posted lost and found items from the community.</p>
+          </div>
+          <a class="section-link" href="/explore">View all <span aria-hidden="true">&rarr;</span></a>
+        </div>
+        <div class="masonry" id="trending-grid"></div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap" id="match-teaser"></div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>Browse by category</h2>
+            <p>Start with what went missing, or what turned up.</p>
+          </div>
+          <a class="section-link" href="/explore">All categories <span aria-hidden="true">&rarr;</span></a>
+        </div>
+        <div class="category-grid" id="category-grid"></div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>Recently reunited</h2>
+            <p>Belongings that found their way back, verified by their owners.</p>
+          </div>
+          <a class="section-link" href="/leaderboard">Meet the helpers <span aria-hidden="true">&rarr;</span></a>
+        </div>
+        <div class="masonry" id="reunited-grid"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>How a reunion happens</h2>
+            <p>Small details make the difference. We keep them private, you confirm them.</p>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num">1</span>
+            <h3>Report it in under a minute</h3>
+            <p>Add a photo, where and when it happened, and one private detail that only the owner would know.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">2</span>
+            <h3>We look for a likely match</h3>
+            <p>Photos, descriptions, category and location are compared to suggest lost and found pairs worth a look.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">3</span>
+            <h3>Verify, meet, return</h3>
+            <p>Chat privately, confirm the private detail, choose a safe public place, and mark it returned.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap">
+        <div class="cta-band">
+          <div>
+            <h2>Someone is missing something right now.</h2>
+            <p>If you found it, a two-minute post can close a very long day. If you lost it, tell the community what to look for.</p>
+          </div>
+          <div class="row">
+            <a class="btn btn-primary btn-lg" href="/post?type=found">I found something</a>
+            <a class="btn btn-outline btn-lg" href="/post?type=lost">I lost something</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  <script src="/js/core.js"></script>
+  <script src="/js/home.js"></script>
+</body>
+</html>

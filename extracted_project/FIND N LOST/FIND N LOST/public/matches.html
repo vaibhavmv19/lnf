@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Possible matches · Lost N Found</title>
+  <meta name="description" content="Suggestions that pair lost and found reports worth checking. Always verify a private detail before a handover." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body data-page="matches" data-nav="">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main">
+    <div class="wrap page-head">
+      <div class="spread" style="align-items: flex-start; gap: 16px; flex-wrap: wrap">
+        <div>
+          <h1>Possible matches</h1>
+          <p>Pairs of lost and found reports with similar photos, descriptions and context. Suggestions are a starting point, never proof of ownership.</p>
+        </div>
+        <button class="btn btn-outline btn-sm" id="refresh-matches" type="button">Refresh suggestions</button>
+      </div>
+    </div>
+    <div class="wrap" id="matches-page" style="padding-bottom: 56px"></div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  <script src="/js/core.js"></script>
+  <script src="/js/matches.js"></script>
+</body>
+</html>
