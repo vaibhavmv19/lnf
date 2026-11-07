@@ -1,7 +1,0 @@
-node_modules/
-.env
-data/db.json
-data/db.json.tmp
-public/uploads/
-.DS_Store
-*.log
