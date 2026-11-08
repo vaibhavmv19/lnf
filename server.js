@@ -106,6 +106,14 @@ function resolveStatic(pathname) {
   return target;
 }
 
+function seedArtwork(name) {
+  try {
+    return require('./server/seed').seedSvgFor(name);
+  } catch {
+    return null;
+  }
+}
+
 function seedIfEmpty() {
   try {
     const db = getDb();
@@ -154,6 +162,21 @@ const server = http.createServer(async (req, res) => {
       if (!target) {
         sendJson(res, 403, { error: 'Forbidden.' });
         return;
+      }
+      // Seeded artwork is written into public/uploads/seed on boot. Hosts with a
+      // read-only filesystem never keep it, so render the illustration on demand.
+      if (!fs.existsSync(target) && pathname.startsWith('/uploads/seed/')) {
+        const svg = seedArtwork(pathname.slice('/uploads/seed/'.length));
+        if (svg) {
+          res.writeHead(200, {
+            'Content-Type': 'image/svg+xml',
+            'Content-Length': Buffer.byteLength(svg),
+            'Cache-Control': 'public, max-age=604800',
+          });
+          if (req.method === 'HEAD') res.end();
+          else res.end(svg);
+          return;
+        }
       }
       const cache = pathname.startsWith('/uploads/') ? 'public, max-age=604800' : 'no-cache';
       sendFile(req, res, target, { cache });

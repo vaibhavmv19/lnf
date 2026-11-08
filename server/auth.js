@@ -8,6 +8,12 @@ const SESSION_TTL = 1000 * 60 * 60 * 24 * 30;
 const COOKIE_NAME = 'lnf_sid';
 const sessions = new Map();
 
+// On a single long-lived server, sessions can live in this Map. Serverless hosts
+// (Vercel, Lambda) run each request in a fresh instance, so a Map loses every
+// session between requests. When SESSION_SECRET is set we instead issue signed,
+// stateless session tokens that verify without server-side storage.
+const SESSION_SECRET = String(process.env.SESSION_SECRET || process.env.APP_SECRET || '').trim();
+
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -22,6 +28,44 @@ function verifyPassword(password, salt, hash) {
   } catch {
     return false;
   }
+}
+
+function signPayload(payload) {
+  return crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
+}
+
+function issueSessionToken(userId) {
+  const payload = Buffer.from(JSON.stringify({ u: userId, t: Date.now() })).toString('base64url');
+  return 'v1.' + payload + '.' + signPayload(payload);
+}
+
+function readSessionToken(token) {
+  if (!SESSION_SECRET) return null;
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3 || parts[0] !== 'v1') return null;
+  const payload = parts[1];
+  const signature = Buffer.from(parts[2], 'base64url');
+  const expected = Buffer.from(signPayload(payload), 'base64url');
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(signature, expected)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!data || typeof data.u !== 'string' || !Number.isFinite(data.t)) return null;
+    if (Date.now() - data.t > SESSION_TTL) return null;
+    return { userId: data.u, createdAt: data.t };
+  } catch {
+    return null;
+  }
+}
+
+// Node's http response only keeps one Set-Cookie value unless they are collected.
+function setCookie(res, value) {
+  const existing = res.getHeader('Set-Cookie');
+  if (!existing) {
+    res.setHeader('Set-Cookie', value);
+    return;
+  }
+  const list = Array.isArray(existing) ? existing.map(String) : [String(existing)];
+  res.setHeader('Set-Cookie', [...list, value]);
 }
 
 function findOrCreateGoogleUser(profile) {
@@ -71,10 +115,10 @@ function findOrCreateGoogleUser(profile) {
 }
 
 function createSession(res, userId) {
-  const sid = crypto.randomBytes(32).toString('hex');
-  sessions.set(sid, { userId, createdAt: Date.now() });
-  res.setHeader(
-    'Set-Cookie',
+  const sid = SESSION_SECRET ? issueSessionToken(userId) : crypto.randomBytes(32).toString('hex');
+  if (!SESSION_SECRET) sessions.set(sid, { userId, createdAt: Date.now() });
+  setCookie(
+    res,
     serializeCookie(COOKIE_NAME, sid, { maxAge: SESSION_TTL / 1000, httpOnly: true, sameSite: 'Lax' }),
   );
   return sid;
@@ -83,13 +127,13 @@ function createSession(res, userId) {
 function destroySession(req, res) {
   const sid = parseCookies(req)[COOKIE_NAME];
   if (sid) sessions.delete(sid);
-  res.setHeader('Set-Cookie', serializeCookie(COOKIE_NAME, '', { maxAge: 0, httpOnly: true, sameSite: 'Lax' }));
+  setCookie(res, serializeCookie(COOKIE_NAME, '', { maxAge: 0, httpOnly: true, sameSite: 'Lax' }));
 }
 
 function currentUser(req) {
   const sid = parseCookies(req)[COOKIE_NAME];
   if (!sid) return null;
-  const session = sessions.get(sid);
+  const session = sessions.get(sid) || readSessionToken(sid);
   if (!session) return null;
   if (Date.now() - session.createdAt > SESSION_TTL) {
     sessions.delete(sid);

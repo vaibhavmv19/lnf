@@ -375,4 +375,18 @@ if (require.main === module) {
   seed({ force: process.argv.includes('--force') })
 }
 
-module.exports = { seed }
+// Rebuild one seeded illustration from its filename. Hosts with a read-only or
+// ephemeral filesystem never keep public/uploads/seed, so artwork is rendered on
+// demand instead of 404ing.
+function seedSvgFor(name) {
+  const match = /^seed-(\d+)-(\d+)-(\d+)\.svg$/.exec(String(name || ''))
+  if (!match) return null
+  const index = Number(match[1])
+  if (!(index >= 0 && index < LISTINGS.length)) return null
+  const imageIndex = Number(match[2])
+  const variant = Number(match[3])
+  const aspect = imageIndex === 0 ? IMAGE_ASPECTS[index % IMAGE_ASPECTS.length] : 0.86
+  return buildSvg(LISTINGS[index][3], variant, Math.round(600 / aspect))
+}
+
+module.exports = { seed, seedSvgFor }

@@ -27,6 +27,8 @@ const {
   isValidEmail,
   isIsoDate,
   createLimiter,
+  parseCookies,
+  serializeCookie,
 } = require('./util');
 const { scorePair, confidenceLabel, confidenceTier, THRESHOLDS } = require('./matching');
 const { CATEGORY_GLYPH } = require('./svgart');
@@ -363,9 +365,16 @@ function saveDataImage(raw) {
   if (!valid) throw new HttpError(400, 'That file is not a valid image.');
   const ext = kind === 'jpeg' ? 'jpg' : kind;
   const name = `${randomId()}.${ext}`;
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
-  return `/uploads/${name}`;
+  try {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
+    return `/uploads/${name}`;
+  } catch (error) {
+    // Serverless hosts mount a read-only filesystem. Keep the photo inline so the
+    // listing still renders instead of failing the whole request.
+    console.warn('[uploads] cannot write to disk, inlining photo:', error.message);
+    return `data:image/${kind};base64,${match[2]}`;
+  }
 }
 
 function signatureOf(raw) {
@@ -462,6 +471,13 @@ route('GET', /^\/api\/auth\/google\/start\/?$/, async ({ req, res, url, viewer }
   }
   const state = crypto.randomBytes(16).toString('hex');
   OAUTH_STATES.set(state, { next, expires: now + 10 * 60 * 1000 });
+  // Serverless hosts may redeem the code in a different instance, so keep the
+  // state and the post-login destination in a short-lived cookie as well.
+  const stateCookie = state + '.' + Buffer.from(next).toString('base64url');
+  res.setHeader(
+    'Set-Cookie',
+    serializeCookie('lnf_oauth', stateCookie, { maxAge: 600, httpOnly: true, sameSite: 'Lax' }),
+  );
 
   const redirectUri = loopbackOrigin(req) + '/api/auth/google/callback';
   return redirect(buildAuthUrl(state, redirectUri));
@@ -475,8 +491,27 @@ route('GET', /^\/api\/auth\/google\/callback\/?$/, async ({ req, res, url }) => 
   const fail = (message) => redirect('/auth?error=' + encodeURIComponent(message));
 
   const state = url.searchParams.get('state') || '';
-  const entry = OAUTH_STATES.get(state);
+  let entry = OAUTH_STATES.get(state);
   OAUTH_STATES.delete(state);
+
+  const stateCookie = parseCookies(req).lnf_oauth || '';
+  if (stateCookie) {
+    const [cookieState, encodedNext] = stateCookie.split('.');
+    if (!entry && cookieState === state) {
+      let next = '/';
+      try {
+        next = safeNextPath(Buffer.from(encodedNext || '', 'base64url').toString('utf8'));
+      } catch {
+        next = '/';
+      }
+      entry = { next, expires: Date.now() + 5 * 60 * 1000 };
+    }
+    res.setHeader(
+      'Set-Cookie',
+      serializeCookie('lnf_oauth', '', { maxAge: 0, httpOnly: true, sameSite: 'Lax' }),
+    );
+  }
+
   if (!entry || entry.expires < Date.now()) return fail('That sign-in link expired. Please try again.');
   if (url.searchParams.get('error')) return fail('Google sign-in was cancelled.');
 
@@ -678,7 +713,7 @@ route('PATCH', /^\/api\/listings\/(?<id>[^/]+)\/?$/, async ({ req, params, viewe
       .map((image) => {
         if (image && image.data) return { url: saveDataImage(image.data), aspect: clamp(image.aspect || 0.8, 0.4, 1.9) };
         const url = String((image && image.url) || '');
-        if (!url.startsWith('/uploads/')) return null;
+        if (!url.startsWith('/uploads/') && !url.startsWith('data:image/')) return null;
         return { url, aspect: clamp(image.aspect || 0.8, 0.4, 1.9) };
       })
       .filter(Boolean);

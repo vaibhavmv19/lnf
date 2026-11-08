@@ -19,6 +19,8 @@ services:
         value: mys.rvu.edu.in
       - key: APP_ORIGIN
         sync: false
+      - key: SESSION_SECRET
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
