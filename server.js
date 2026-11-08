@@ -202,17 +202,49 @@ async function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
+let readyPromise = null;
+async function ensureReady() {
+  if (!readyPromise) {
+    readyPromise = (async () => {
+      await store.init();
+      seedIfEmpty();
+    })().catch((error) => {
+      readyPromise = null;
+      throw error;
+    });
+  }
+  return readyPromise;
+}
+
+// Vercel / serverless entry: initialise on first request, then delegate.
+async function handler(req, res) {
+  try {
+    await ensureReady();
+  } catch (error) {
+    console.error('[init]', error);
+    if (!res.headersSent) {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Service is starting up. Please retry.' }));
+    }
+    return;
+  }
+  return server.listeners('request')[0](req, res);
+}
+
 async function start() {
-  await store.init();
-  seedIfEmpty();
+  await ensureReady();
   server.listen(PORT, HOST, () => {
     console.log(`Lost N Found running at http://localhost:${PORT}`);
   });
 }
 
-start().catch((error) => {
-  console.error('[start]', error);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((error) => {
+    console.error('[start]', error);
+    process.exit(1);
+  });
+}
 
-module.exports = server;
+module.exports = handler;
+module.exports.server = server;
+module.exports.handler = handler;

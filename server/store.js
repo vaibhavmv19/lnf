@@ -56,8 +56,8 @@ function blankDb() {
 }
 
 function ensureDirs() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.mkdirSync(SEED_IMAGE_DIR, { recursive: true });
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+  try { fs.mkdirSync(SEED_IMAGE_DIR, { recursive: true }); } catch {}
 }
 
 function readLocal() {

@@ -72,9 +72,11 @@ function ip(req) {
 }
 
 function originOf(req) {
+  const configured = configuredOrigin();
+  if (configured) return configured;
   const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim() || 'http';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-  return proto + '://' + host;
+  return proto + '://' + String(host).split(',')[0].trim();
 }
 
 function findListing(id) {
@@ -418,10 +420,28 @@ function safeNextPath(value) {
 
 // The redirect URI has to match the one used when redeeming the code, so it is
 // derived from the request host (loopback only, never a spoofed Host header).
-function loopbackOrigin(req) {
-  const host = String(req.headers.host || '');
-  return /^(localhost|127\.0\.0\.1)(:\d{1,5})?$/i.test(host) ? `http://${host}` : 'http://localhost:3000';
+function configuredOrigin() {
+  const raw = String(process.env.APP_ORIGIN || process.env.PUBLIC_URL || '').trim();
+  if (!raw) return '';
+  return raw.replace(/\/+$/, '');
 }
+
+function appOrigin(req) {
+  const configured = configuredOrigin();
+  if (configured) return configured;
+  const host = String((req && (req.headers['x-forwarded-host'] || req.headers.host)) || '');
+  if (/^(localhost|127\.0\.0\.1)(:\d{1,5})?$/i.test(host.split(',')[0].trim())) {
+    return `http://${host.split(',')[0].trim()}`;
+  }
+  if (host) {
+    const proto = String((req.headers['x-forwarded-proto'] || 'https')).split(',')[0].trim() || 'https';
+    return proto + '://' + host.split(',')[0].trim();
+  }
+  return 'http://localhost:3000';
+}
+
+// Backwards-compatible name used elsewhere in this file.
+function loopbackOrigin(req) { return appOrigin(req); }
 
 route('GET', /^\/api\/auth\/google\/start\/?$/, async ({ req, res, url, viewer }) => {
   limitAuth(`google-start:${ip(req)}`, 40, 10 * 60 * 1000);
