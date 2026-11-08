@@ -34,8 +34,16 @@ function signPayload(payload) {
   return crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
 }
 
-function issueSessionToken(userId) {
-  const payload = Buffer.from(JSON.stringify({ u: userId, t: Date.now() })).toString('base64url');
+function issueSessionToken(user) {
+  const claims = {
+    u: user.id,
+    t: Date.now(),
+    e: String(user.email || '').toLowerCase() || undefined,
+    n: user.fullName || undefined,
+    p: user.avatarUrl || undefined,
+    un: user.username || undefined,
+  };
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
   return 'v1.' + payload + '.' + signPayload(payload);
 }
 
@@ -51,7 +59,14 @@ function readSessionToken(token) {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (!data || typeof data.u !== 'string' || !Number.isFinite(data.t)) return null;
     if (Date.now() - data.t > SESSION_TTL) return null;
-    return { userId: data.u, createdAt: data.t };
+    return {
+      userId: data.u,
+      createdAt: data.t,
+      email: typeof data.e === 'string' ? data.e : '',
+      fullName: typeof data.n === 'string' ? data.n : '',
+      picture: typeof data.p === 'string' ? data.p : null,
+      username: typeof data.un === 'string' ? data.un : '',
+    };
   } catch {
     return null;
   }
@@ -115,7 +130,8 @@ function findOrCreateGoogleUser(profile) {
 }
 
 function createSession(res, userId) {
-  const sid = SESSION_SECRET ? issueSessionToken(userId) : crypto.randomBytes(32).toString('hex');
+  const account = getDb().users.find((user) => user.id === userId) || { id: userId };
+  const sid = SESSION_SECRET ? issueSessionToken(account) : crypto.randomBytes(32).toString('hex');
   if (!SESSION_SECRET) sessions.set(sid, { userId, createdAt: Date.now() });
   setCookie(
     res,
@@ -139,7 +155,39 @@ function currentUser(req) {
     sessions.delete(sid);
     return null;
   }
-  return getDb().users.find((user) => user.id === session.userId) || null;
+
+  const db = getDb();
+  let user = db.users.find((row) => row.id === session.userId) || null;
+  if (!user && session.email) {
+    user = db.users.find((row) => String(row.email || '').toLowerCase() === session.email) || null;
+  }
+  if (!user && session.email) {
+    // Serverless instances each keep their own in-memory dataset, so the account
+    // created during the callback may not exist here. The token is signed, so
+    // rebuild the account from its claims instead of signing the user out.
+    const local = session.username || session.email.split('@')[0].replace(/[^a-z0-9_]/g, '').slice(0, 20);
+    let username = local.length >= 3 ? local : 'member';
+    if (db.users.some((row) => String(row.username || '').toLowerCase() === username.toLowerCase())) {
+      username = username.slice(0, 14) + crypto.randomBytes(3).toString('hex');
+    }
+    user = {
+      id: session.userId,
+      username,
+      email: session.email,
+      fullName: session.fullName || username,
+      avatarUrl: session.picture || null,
+      bio: '',
+      city: '',
+      role: 'member',
+      reputation: 0,
+      successfulReturns: 0,
+      createdAt: new Date().toISOString(),
+      prefs: { emailMatches: true, emailMessages: true, emailUpdates: false },
+    };
+    db.users.push(user);
+    save();
+  }
+  return user;
 }
 
 function requireUser(req) {
