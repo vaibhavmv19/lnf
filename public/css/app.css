@@ -1629,6 +1629,18 @@ a:hover { color: var(--blue-dark); }
   .nav { gap: 8px; }
 }
 
+/* --- controls and rows that must never force a wide layout ------------- */
+/* These carry px min-widths on desktop; at phone width they push the page
+   wider than the viewport instead of shrinking. */
+@media (max-width: 620px) {
+  .filters-row .select,
+  .filters-search,
+  .report-row .body { min-width: 0; }
+  .filters-row .select { flex: 1 1 calc(50% - 6px); }
+  .report-row { flex-wrap: wrap; }
+  .report-row .body { flex: 1 1 100%; }
+}
+
 /* --- small phones (iPhone SE and narrow) ------------------------------- */
 
 @media (max-width: 400px) {
@@ -1688,3 +1700,34 @@ a:hover { color: var(--blue-dark); }
 
 .thread-body { max-height: 60dvh; }
 @media (max-width: 720px) { .thread-body { max-height: none; } }
+
+/* --- flex rows must wrap instead of being clipped ------------------------ */
+/* .row is an inline flex group (hero CTAs, card actions). Without wrapping the
+   last button runs past the viewport and overflow-x: clip cuts it in half. */
+@media (max-width: 560px) {
+  .row { flex-wrap: wrap; }
+  .row > .btn { flex: 1 1 100%; justify-content: center; }
+  .row > .btn-lg { padding: 0 16px; }
+  .btn { max-width: 100%; }
+}
+
+/* --- phone text and form controls --------------------------------------- */
+/* iOS Safari zooms the whole page when a focused field is smaller than 16px,
+   which is what makes forms feel broken on a phone. Force 16px there only. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (max-width: 720px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea,
+  .input,
+  .select,
+  .filters-row .select,
+  .hero-search input,
+  .nav-mobile-search input { font-size: 16px !important; }
+  .table th,
+  .table td { white-space: normal; }
+  .table-wrap,
+  .table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  img, svg, video, canvas { max-width: 100%; }
+}

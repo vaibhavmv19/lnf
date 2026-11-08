@@ -175,7 +175,18 @@ async function exchangeCode(code, redirectUri) {
   });
   const payload = await response.json().catch(() => null);
   if (!payload || payload.error) {
-    throw new HttpError(401, 'Google rejected that sign-in. Please start again.');
+    const code = String((payload && payload.error) || 'unknown');
+    const reason = String((payload && payload.error_description) || '').slice(0, 180);
+    // Surfaced so a misconfigured client is diagnosable instead of a dead end.
+    console.warn('[oauth] token exchange failed:', code, reason);
+    const hints = {
+      invalid_client: 'the client ID and secret do not match this OAuth client.',
+      redirect_uri_mismatch: 'the redirect URI is not registered for this OAuth client.',
+      invalid_grant: 'that sign-in code expired or was already used.',
+      unauthorized_client: 'this OAuth client cannot use this sign-in flow.',
+    };
+    const detail = hints[code] || reason || 'no detail returned.';
+    throw new HttpError(401, 'Google sign-in failed (' + code + '): ' + detail);
   }
   if (!payload.id_token) {
     throw new HttpError(401, 'Google did not return an identity token for that account.');
