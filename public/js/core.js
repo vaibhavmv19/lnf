@@ -619,6 +619,12 @@
       dotAt.y = point.y;
       ringAt.x = point.x;
       ringAt.y = point.y;
+      /* Position both layers before showing them, so a throttled frame can never
+         leave the point sitting in the top-left corner. */
+      dot.style.transform =
+        'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
+      ring.style.transform =
+        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0)';
       ring.classList.add('is-live');
       dot.classList.add('is-live');
       frame = window.requestAnimationFrame(paint);
