@@ -87,9 +87,9 @@
 
     if (!state.user) {
       target.innerHTML =
-        '<div class="cta-band" style="background:linear-gradient(120deg,#eff6ff,#f8fafc);color:var(--navy);box-shadow:var(--shadow-sm);border:1px solid #dbe7ff">' +
-        '<div><h2 style="color:var(--navy)">Something of yours went missing?</h2>' +
-        '<p style="color:#475569">Sign in to post it and we will compare it against every found report, photo and description included.</p></div>' +
+        '<div class="signin-band">' +
+        '<div><h2>Something of yours went missing?</h2>' +
+        '<p>Sign in to post it and we will compare it against every found report, photo and description included.</p></div>' +
         '<div class="row"><a class="btn btn-primary" href="/login">Sign in</a>' +
         '<a class="btn btn-outline" href="/explore">Browse first</a></div></div>';
       return;
