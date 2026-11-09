@@ -556,6 +556,159 @@
     return state;
   })();
 
+  /* ------------------------------------------------------------------ motion */
+
+  function reduceMotion() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /* A soft dot that tracks the pointer and a ring that trails it, growing over
+     anything clickable. Fine pointers only, and never with reduced motion. */
+  function initCursor() {
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
+    if (!fine.matches || reduceMotion() || document.querySelector('.lnf-cursor-ring')) return;
+
+    const ring = document.createElement('div');
+    ring.className = 'lnf-cursor-ring';
+    ring.setAttribute('aria-hidden', 'true');
+    ring.appendChild(document.createElement('i'));
+    const dot = document.createElement('div');
+    dot.className = 'lnf-cursor-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(ring);
+    document.body.appendChild(dot);
+    document.documentElement.classList.add('lnf-cursor-on');
+
+    const hover = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const ringAt = { x: hover.x, y: hover.y };
+    const dotAt = { x: hover.x, y: hover.y };
+    let started = false;
+
+    const interactive =
+      'a, button, [role="button"], input, select, textarea, summary, label, ' +
+      '.card, .chip, .category-card, .type-option, .avatar, .save-btn';
+
+    function paint() {
+      dotAt.x += (hover.x - dotAt.x) * 0.6;
+      dotAt.y += (hover.y - dotAt.y) * 0.6;
+      ringAt.x += (hover.x - ringAt.x) * 0.16;
+      ringAt.y += (hover.y - ringAt.y) * 0.16;
+      dot.style.transform = 'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
+      ring.style.transform = 'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0)';
+      window.requestAnimationFrame(paint);
+    }
+
+    document.addEventListener('mousemove', (event) => {
+      hover.x = event.clientX;
+      hover.y = event.clientY;
+      if (!started) {
+        started = true;
+        dotAt.x = hover.x;
+        dotAt.y = hover.y;
+        ringAt.x = hover.x;
+        ringAt.y = hover.y;
+        ring.classList.add('is-live');
+        dot.classList.add('is-live');
+        window.requestAnimationFrame(paint);
+      }
+      const over = event.target && event.target.closest ? event.target.closest(interactive) : null;
+      ring.classList.toggle('is-hover', Boolean(over));
+    }, { passive: true });
+
+    document.addEventListener('mouseleave', () => {
+      ring.classList.remove('is-live', 'is-hover');
+      dot.classList.remove('is-live');
+      started = false;
+    });
+    document.addEventListener('mousedown', () => ring.classList.add('is-down'));
+    document.addEventListener('mouseup', () => ring.classList.remove('is-down'));
+  }
+
+  /* Sections and cards rise into place once, staggered a little, as they scroll in. */
+  function initReveal() {
+    if (reduceMotion()) return;
+    document.documentElement.classList.add('lnf-motion');
+
+    const selector =
+      '.section-head, .step, .category-card, .panel, .cta-band, .empty-state, ' +
+      '.masonry > *, .hero-stats > *, .stat-row > *, .review-card';
+    let order = 0;
+    let waiting = [];
+
+    function tag() {
+      Array.from(document.querySelectorAll(selector)).forEach((el) => {
+        if ('reveal' in el.dataset || el.classList.contains('is-in')) return;
+        el.setAttribute('data-reveal', '');
+        el.style.setProperty('--reveal-delay', String((order % 6) * 55));
+        order += 1;
+        waiting.push(el);
+      });
+    }
+
+    function sweep() {
+      const limit = window.innerHeight * 0.94;
+      waiting = waiting.filter((el) => {
+        if (!el.isConnected) return false;
+        const box = el.getBoundingClientRect();
+        if (box.top < limit && box.bottom > -60) {
+          el.classList.add('is-in');
+          return false;
+        }
+        return true;
+      });
+    }
+
+    /* Scroll-driven on purpose: IntersectionObserver callbacks can be skipped in
+       throttled or backgrounded tabs, and content must never stay invisible. */
+    let last = 0;
+    function onMotion() {
+      const now = Date.now();
+      if (now - last < 50) return;
+      last = now;
+      sweep();
+    }
+
+    tag();
+    sweep();
+    window.addEventListener('scroll', onMotion, { passive: true });
+    window.addEventListener('resize', onMotion);
+    window.addEventListener('load', () => { tag(); sweep(); });
+
+    const refresh = debounce(() => { tag(); sweep(); }, 140);
+    new MutationObserver(refresh).observe(document.body, { childList: true, subtree: true });
+  }
+
+  /* Thin gradient bar that fills as the page scrolls. */
+  function initProgress() {
+    if (document.getElementById('lnf-progress')) return;
+    const bar = document.createElement('div');
+    bar.id = 'lnf-progress';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+
+    function paint() {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const value = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      bar.style.setProperty('--p', value.toFixed(4));
+    }
+
+    paint();
+    window.addEventListener('scroll', paint, { passive: true });
+    window.addEventListener('resize', paint);
+  }
+
+  function initMotion() {
+    try {
+      initProgress();
+      initCursor();
+      initReveal();
+    } catch (error) {
+      document.documentElement.classList.remove('lnf-motion', 'lnf-cursor-on');
+    }
+  }
+
+  initMotion();
+
   window.LNF = {
     state,
     boot,
