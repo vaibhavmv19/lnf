@@ -180,7 +180,7 @@
       '<div><span>Area</span><strong>' + escapeHtml(item.area || 'Withheld for privacy') + '</strong></div>' +
       '</div>' +
       matchPanel(data.match) +
-      '<div class="desc-block"><h3>Description</h3><p>' + escapeHtml(item.description) + '</p></div>' +
+      (item.description ? '<div class="desc-block"><h3>Description</h3><p>' + escapeHtml(item.description) + '</p></div>' : '') +
       (item.canEdit
         ? '<div class="desc-block"><h3>Private detail (only you can see this)</h3><p>' + escapeHtml(item.privateDetail || 'Not provided') + '</p></div>'
         : item.hasPrivateDetail

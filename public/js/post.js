@@ -161,11 +161,8 @@
       '<div class="field span-2"><label class="label" for="f-location">Location on campus</label>' +
       '<input class="input" id="f-location" maxlength="120" placeholder="e.g. Central Library, 2nd floor" value="' + escapeHtml(listing ? (listing.area || listing.city) : '') + '" />' +
       '<span class="hint">A building or landmark is enough. Exact rooms and personal addresses are never shown.</span></div>' +
-      '<div class="field span-2"><label class="label" for="f-description">Description</label>' +
+      '<div class="field span-2"><label class="label" for="f-description">Description <span class="hint">(optional)</span></label>' +
       '<textarea class="textarea" id="f-description" maxlength="2000" placeholder="Describe the item, when you last saw it, and anything that makes it recognisable. Avoid your phone number or address.">' + escapeHtml(listing ? listing.description : '') + '</textarea></div>' +
-      '<div class="field span-2"><label class="label" for="f-private">Private detail for verification</label>' +
-      '<textarea class="textarea" id="f-private" maxlength="500" style="min-height:80px" placeholder="Something only the owner would know, e.g. a folded ticket behind the card slot.">' + escapeHtml(listing ? listing.privateDetail || '' : '') + '</textarea>' +
-      '<span class="hint">Never shown publicly. This is how the other person confirms ownership.</span></div>' +
       '</div>' +
 
       '<div class="field"><label class="label" for="f-reward">Reward <span class="hint">(optional, in ₹)</span></label>' +
@@ -180,7 +177,7 @@
       '<div class="panel"><div class="panel-body">' +
       '<h3 style="margin-bottom:8px">' + icon('shield') + ' Post it safely</h3>' +
       '<ul class="checklist">' +
-      '<li>' + icon('check') + '<span>Share a private detail, never your address or phone number.</span></li>' +
+      '<li>' + icon('check') + '<span>Never put your address or phone number in a listing.</span></li>' +
       '<li>' + icon('check') + '<span>Photos are compressed and stripped of camera metadata.</span></li>' +
       '<li>' + icon('check') + '<span>Verification happens privately in messages.</span></li>' +
       '<li>' + icon('check') + '<span>Meet in a public place and never pay to get an item back.</span></li>' +
@@ -246,7 +243,6 @@
       location: qs('#f-location').value.trim(),
       incidentDate: qs('#f-date').value,
       reward: Number(qs('#f-reward').value || 0),
-      privateDetail: qs('#f-private').value.trim(),
     };
   }
 
@@ -259,9 +255,7 @@
     const values = collect();
     if (!state.images.length) return toast('Add at least one photo so people can recognise the item.', 'error');
     if (values.title.length < 4) return toast('Give the item a short, clear title.', 'error');
-    if (values.description.length < 12) return toast('Add a little more description.', 'error');
     if (!values.location) return toast('Where on campus was it lost or found?', 'error');
-    if (values.privateDetail.length < 6) return toast('Add one private detail that only the owner would know.', 'error');
 
     const button = qs('#submit-post');
     state.saving = true;

@@ -637,11 +637,7 @@ route('POST', /^\/api\/listings\/?$/, async ({ req, viewer, body }) => {
   const privateDetail = cleanMultiline(body.privateDetail, 500);
 
   if (title.length < 4) throw new HttpError(400, 'Give the item a short, clear title.');
-  if (description.length < 12) throw new HttpError(400, 'Add a little more description so people can recognise it.');
   if (!area) throw new HttpError(400, 'Where on campus was it lost or found?');
-  if (privateDetail.length < 6) {
-    throw new HttpError(400, 'Add one private detail that only the owner would know.');
-  }
 
   const rawImages = Array.isArray(body.images) ? body.images.slice(0, 5) : [];
   const images = rawImages.map((image) => ({
@@ -691,9 +687,7 @@ route('PATCH', /^\/api\/listings\/(?<id>[^/]+)\/?$/, async ({ req, params, viewe
     listing.title = title;
   }
   if (body.description !== undefined) {
-    const description = cleanMultiline(body.description, 2000);
-    if (description.length < 12) throw new HttpError(400, 'Add a little more description.');
-    listing.description = description;
+    listing.description = cleanMultiline(body.description, 2000);
   }
   if (body.category !== undefined && CATEGORIES.includes(body.category)) listing.category = body.category;
   if (body.city !== undefined) listing.city = cleanText(body.city, 80) || listing.city;
@@ -703,7 +697,7 @@ route('PATCH', /^\/api\/listings\/(?<id>[^/]+)\/?$/, async ({ req, params, viewe
   if (body.color !== undefined) listing.color = cleanText(body.color, 40);
   if (body.incidentDate !== undefined && isIsoDate(body.incidentDate)) listing.incidentDate = body.incidentDate;
   if (body.reward !== undefined) listing.reward = Math.round(clamp(body.reward, 0, 100000));
-  if (body.privateDetail !== undefined && cleanMultiline(body.privateDetail, 500).length >= 6) {
+  if (body.privateDetail !== undefined) {
     listing.privateDetail = cleanMultiline(body.privateDetail, 500);
   }
   if (body.status === 'active' || body.status === 'returned') listing.status = body.status;
