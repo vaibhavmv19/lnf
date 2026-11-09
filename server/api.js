@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { getDb, save, UPLOAD_DIR } = require('./store');
+const { getDb, save, UPLOAD_DIR, putPhoto } = require('./store');
 const {
   currentUser,
   requireUser,
@@ -350,7 +350,7 @@ function runMatchingFor(listing) {
   return results;
 }
 
-function saveDataImage(raw) {
+async function saveDataImage(raw) {
   if (typeof raw !== 'string') throw new HttpError(400, 'One of the photos could not be read.');
   const match = /^data:image\/(png|jpeg|jpg|webp);base64,([a-zA-Z0-9+/=]+)$/.exec(raw.trim());
   if (!match) throw new HttpError(400, 'Photos must be JPEG, PNG or WebP images.');
@@ -365,6 +365,12 @@ function saveDataImage(raw) {
   if (!valid) throw new HttpError(400, 'That file is not a valid image.');
   const ext = kind === 'jpeg' ? 'jpg' : kind;
   const name = `${randomId()}.${ext}`;
+  try {
+    const hosted = await putPhoto(buffer, ext, `image/${kind}`);
+    if (hosted) return hosted;
+  } catch (error) {
+    console.warn('[uploads] object storage failed, using disk:', error.message);
+  }
   try {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
@@ -640,10 +646,12 @@ route('POST', /^\/api\/listings\/?$/, async ({ req, viewer, body }) => {
   if (!area) throw new HttpError(400, 'Where on campus was it lost or found?');
 
   const rawImages = Array.isArray(body.images) ? body.images.slice(0, 5) : [];
-  const images = rawImages.map((image) => ({
-    url: saveDataImage(image && image.data),
-    aspect: clamp(image && image.aspect ? image.aspect : 0.8, 0.4, 1.9),
-  }));
+  const images = await Promise.all(
+    rawImages.map(async (image) => ({
+      url: await saveDataImage(image && image.data),
+      aspect: clamp(image && image.aspect ? image.aspect : 0.8, 0.4, 1.9),
+    })),
+  );
   if (!images.length) throw new HttpError(400, 'Add at least one photo so people can recognise the item.');
 
   const signature = signatureOf(body.signature) || signatureOf(rawImages[0] && rawImages[0].signature);
@@ -702,15 +710,19 @@ route('PATCH', /^\/api\/listings\/(?<id>[^/]+)\/?$/, async ({ req, params, viewe
   }
   if (body.status === 'active' || body.status === 'returned') listing.status = body.status;
   if (Array.isArray(body.images) && body.images.length) {
-    listing.images = body.images
-      .slice(0, 5)
-      .map((image) => {
-        if (image && image.data) return { url: saveDataImage(image.data), aspect: clamp(image.aspect || 0.8, 0.4, 1.9) };
+    const kept = await Promise.all(
+      body.images.slice(0, 5).map(async (image) => {
+        if (image && image.data) {
+          return { url: await saveDataImage(image.data), aspect: clamp(image.aspect || 0.8, 0.4, 1.9) };
+        }
         const url = String((image && image.url) || '');
-        if (!url.startsWith('/uploads/') && !url.startsWith('data:image/')) return null;
+        const allowed =
+          url.startsWith('/uploads/') || url.startsWith('data:image/') || /^https:\/\//.test(url);
+        if (!allowed) return null;
         return { url, aspect: clamp(image.aspect || 0.8, 0.4, 1.9) };
-      })
-      .filter(Boolean);
+      }),
+    );
+    listing.images = kept.filter(Boolean);
     if (!listing.images.length) throw new HttpError(400, 'Add at least one photo so people can recognise the item.');
     const signature = signatureOf(body.signature) || signatureOf(body.images[0] && body.images[0].signature);
     if (signature) listing.imageSignature = signature;

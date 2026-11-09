@@ -61,7 +61,7 @@ const STATIC_PREFIXES = ['/css/', '/js/', '/uploads/', '/assets/'];
 const SECURITY_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "img-src 'self' data: blob: https://*.googleusercontent.com",
+    "img-src 'self' data: blob: https://*.googleusercontent.com https://*.supabase.co",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "script-src 'self'",
@@ -139,8 +139,24 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (url.pathname.startsWith('/api/')) {
+      // Pick up writes made by other instances before answering.
+      try {
+        await store.sync();
+      } catch (error) {
+        console.warn('[store] refresh skipped:', error.message);
+      }
       const handled = await handleApi(req, res, url);
-      if (handled) return;
+      if (handled) {
+        // A mutation is only acknowledged once it is durable.
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          try {
+            await store.flush();
+          } catch (error) {
+            console.warn('[store] flush failed:', error.message);
+          }
+        }
+        return;
+      }
     }
 
     const pathname = url.pathname;

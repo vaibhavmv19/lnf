@@ -562,65 +562,101 @@
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  /* A soft dot that tracks the pointer and a ring that trails it, growing over
-     anything clickable. Fine pointers only, and never with reduced motion. */
+  /* A white point that tracks the pointer, wrapped in a faint 20% glow ring that
+     trails it, swells over anything clickable and ripples on click. Fine
+     pointers only, never with reduced motion, and never over touch screens. */
   function initCursor() {
     const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
-    if (!fine.matches || reduceMotion() || document.querySelector('.lnf-cursor-ring')) return;
+    if (!fine.matches || reduceMotion() || document.querySelector('.lnf-cursor-dot')) return;
 
     const ring = document.createElement('div');
     ring.className = 'lnf-cursor-ring';
     ring.setAttribute('aria-hidden', 'true');
     ring.appendChild(document.createElement('i'));
+
     const dot = document.createElement('div');
     dot.className = 'lnf-cursor-dot';
     dot.setAttribute('aria-hidden', 'true');
+
     document.body.appendChild(ring);
     document.body.appendChild(dot);
     document.documentElement.classList.add('lnf-cursor-on');
 
-    const hover = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    const ringAt = { x: hover.x, y: hover.y };
-    const dotAt = { x: hover.x, y: hover.y };
-    let started = false;
+    const point = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const dotAt = { x: point.x, y: point.y };
+    const ringAt = { x: point.x, y: point.y };
+    let live = false;
+    let frame = 0;
 
     const interactive =
       'a, button, [role="button"], input, select, textarea, summary, label, ' +
       '.card, .chip, .category-card, .type-option, .avatar, .save-btn';
 
+    /* The point keeps up almost exactly; the ring lags behind, and the size of
+       that lag is what gives the ring its sense of weight while moving fast. */
     function paint() {
-      dotAt.x += (hover.x - dotAt.x) * 0.6;
-      dotAt.y += (hover.y - dotAt.y) * 0.6;
-      ringAt.x += (hover.x - ringAt.x) * 0.16;
-      ringAt.y += (hover.y - ringAt.y) * 0.16;
-      dot.style.transform = 'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
-      ring.style.transform = 'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0)';
-      window.requestAnimationFrame(paint);
+      dotAt.x += (point.x - dotAt.x) * 0.72;
+      dotAt.y += (point.y - dotAt.y) * 0.72;
+      ringAt.x += (point.x - ringAt.x) * 0.17;
+      ringAt.y += (point.y - ringAt.y) * 0.17;
+
+      const lag = Math.min(Math.hypot(point.x - ringAt.x, point.y - ringAt.y), 80);
+      const grow = 1 + lag / 420;
+
+      dot.style.transform =
+        'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
+      ring.style.transform =
+        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0) scale(' +
+        grow.toFixed(3) + ')';
+
+      frame = window.requestAnimationFrame(paint);
+    }
+
+    function wake() {
+      if (live) return;
+      live = true;
+      dotAt.x = point.x;
+      dotAt.y = point.y;
+      ringAt.x = point.x;
+      ringAt.y = point.y;
+      ring.classList.add('is-live');
+      dot.classList.add('is-live');
+      frame = window.requestAnimationFrame(paint);
+    }
+
+    function sleep() {
+      live = false;
+      window.cancelAnimationFrame(frame);
+      ring.classList.remove('is-live', 'is-hover', 'is-down');
+      dot.classList.remove('is-live');
+    }
+
+    function ripple() {
+      const ping = document.createElement('div');
+      ping.className = 'lnf-cursor-pulse';
+      ping.setAttribute('aria-hidden', 'true');
+      ping.style.left = point.x + 'px';
+      ping.style.top = point.y + 'px';
+      ping.addEventListener('animationend', () => ping.remove());
+      document.body.appendChild(ping);
     }
 
     document.addEventListener('mousemove', (event) => {
-      hover.x = event.clientX;
-      hover.y = event.clientY;
-      if (!started) {
-        started = true;
-        dotAt.x = hover.x;
-        dotAt.y = hover.y;
-        ringAt.x = hover.x;
-        ringAt.y = hover.y;
-        ring.classList.add('is-live');
-        dot.classList.add('is-live');
-        window.requestAnimationFrame(paint);
-      }
+      point.x = event.clientX;
+      point.y = event.clientY;
+      if (!live) wake();
       const over = event.target && event.target.closest ? event.target.closest(interactive) : null;
       ring.classList.toggle('is-hover', Boolean(over));
     }, { passive: true });
 
-    document.addEventListener('mouseleave', () => {
-      ring.classList.remove('is-live', 'is-hover');
-      dot.classList.remove('is-live');
-      started = false;
+    document.addEventListener('mouseleave', sleep);
+    document.addEventListener('mouseenter', wake);
+    window.addEventListener('blur', sleep);
+
+    document.addEventListener('mousedown', () => {
+      ring.classList.add('is-down');
+      ripple();
     });
-    document.addEventListener('mousedown', () => ring.classList.add('is-down'));
     document.addEventListener('mouseup', () => ring.classList.remove('is-down'));
   }
 
