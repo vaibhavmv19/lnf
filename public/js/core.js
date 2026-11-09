@@ -414,7 +414,8 @@
         '<button type="button" data-logout>' + icon('logout') + 'Sign out</button>' +
         '</div></div>'
       : '<a class="btn btn-outline btn-sm" href="/login">Sign in</a>' +
-        '<a class="btn btn-primary btn-sm" href="/post">' + icon('plus') + 'Post an item</a>';
+        '<a class="btn btn-primary btn-sm" href="/post" aria-label="Post an item">' + icon('plus') +
+        '<span class="post-label">Post an item</span></a>';
 
     if (header) {
       header.innerHTML =
@@ -563,16 +564,24 @@
   }
 
   /* A white point that tracks the pointer, wrapped in a faint 20% glow ring that
-     trails it, swells over anything clickable and ripples on click. Fine
-     pointers only, never with reduced motion, and never over touch screens. */
+     trails it, stretches along its own direction of travel, breathes when the
+     pointer rests, shrinks over text fields, swells over controls and ripples on
+     click. Fine pointers only, and it dismantles itself if the device switches
+     to touch or the visitor asks for reduced motion. */
   function initCursor() {
     const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
-    if (!fine.matches || reduceMotion() || document.querySelector('.lnf-cursor-dot')) return;
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!fine.matches || calm.matches || document.querySelector('.lnf-cursor-dot')) return;
+
+    const controller = new AbortController();
+    const signal = controller.signal;
 
     const ring = document.createElement('div');
     ring.className = 'lnf-cursor-ring';
     ring.setAttribute('aria-hidden', 'true');
-    ring.appendChild(document.createElement('i'));
+    const inner = document.createElement('i');
+    inner.appendChild(document.createElement('b'));
+    ring.appendChild(inner);
 
     const dot = document.createElement('div');
     dot.className = 'lnf-cursor-dot';
@@ -587,27 +596,49 @@
     const ringAt = { x: point.x, y: point.y };
     let live = false;
     let frame = 0;
+    let stillSince = 0;
 
     const interactive =
-      'a, button, [role="button"], input, select, textarea, summary, label, ' +
-      '.card, .chip, .category-card, .type-option, .avatar, .save-btn';
+      'a, button, [role="button"], summary, label, .card, .chip, .category-card, ' +
+      '.type-option, .avatar, .save-btn, input[type="checkbox"], input[type="radio"]';
+    const fields = 'input:not([type="checkbox"]):not([type="radio"]), textarea, select';
 
-    /* The point keeps up almost exactly; the ring lags behind, and the size of
-       that lag is what gives the ring its sense of weight while moving fast. */
-    function paint() {
-      dotAt.x += (point.x - dotAt.x) * 0.72;
-      dotAt.y += (point.y - dotAt.y) * 0.72;
-      ringAt.x += (point.x - ringAt.x) * 0.17;
-      ringAt.y += (point.y - ringAt.y) * 0.17;
+    function place() {
+      dot.style.transform =
+        'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
+      ring.style.transform =
+        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0)';
+    }
 
-      const lag = Math.min(Math.hypot(point.x - ringAt.x, point.y - ringAt.y), 80);
-      const grow = 1 + lag / 420;
+    /* The point keeps up closely; the ring trails behind, and the gap between the
+       two is what stretches the ring along the direction of travel. */
+    function paint(now) {
+      dotAt.x += (point.x - dotAt.x) * 0.7;
+      dotAt.y += (point.y - dotAt.y) * 0.7;
+      ringAt.x += (point.x - ringAt.x) * 0.19;
+      ringAt.y += (point.y - ringAt.y) * 0.19;
+
+      const dx = point.x - ringAt.x;
+      const dy = point.y - ringAt.y;
+      const speed = Math.min(Math.hypot(dx, dy), 90);
+      const angle = speed > 0.8 ? (Math.atan2(dy, dx) * 180) / Math.PI : 0;
 
       dot.style.transform =
         'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
       ring.style.transform =
-        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0) scale(' +
-        grow.toFixed(3) + ')';
+        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0) rotate(' +
+        angle.toFixed(1) + 'deg)';
+      inner.style.setProperty('--sx', (1 + speed / 300).toFixed(3));
+      inner.style.setProperty('--sy', (1 - speed / 1100).toFixed(3));
+
+      /* Rest for a moment and the ring starts to breathe. */
+      if (speed < 0.5) {
+        if (!stillSince) stillSince = now;
+        if (now - stillSince > 520) ring.classList.add('is-idle');
+      } else {
+        stillSince = 0;
+        ring.classList.remove('is-idle');
+      }
 
       frame = window.requestAnimationFrame(paint);
     }
@@ -621,19 +652,17 @@
       ringAt.y = point.y;
       /* Position both layers before showing them, so a throttled frame can never
          leave the point sitting in the top-left corner. */
-      dot.style.transform =
-        'translate3d(' + dotAt.x.toFixed(2) + 'px, ' + dotAt.y.toFixed(2) + 'px, 0)';
-      ring.style.transform =
-        'translate3d(' + ringAt.x.toFixed(2) + 'px, ' + ringAt.y.toFixed(2) + 'px, 0)';
+      place();
       ring.classList.add('is-live');
       dot.classList.add('is-live');
+      stillSince = 0;
       frame = window.requestAnimationFrame(paint);
     }
 
     function sleep() {
       live = false;
       window.cancelAnimationFrame(frame);
-      ring.classList.remove('is-live', 'is-hover', 'is-down');
+      ring.classList.remove('is-live', 'is-hover', 'is-down', 'is-field', 'is-idle');
       dot.classList.remove('is-live');
     }
 
@@ -643,27 +672,57 @@
       ping.setAttribute('aria-hidden', 'true');
       ping.style.left = point.x + 'px';
       ping.style.top = point.y + 'px';
-      ping.addEventListener('animationend', () => ping.remove());
+      ping.addEventListener('animationend', () => ping.remove(), { signal });
       document.body.appendChild(ping);
     }
 
-    document.addEventListener('mousemove', (event) => {
+    function track(event) {
       point.x = event.clientX;
       point.y = event.clientY;
       if (!live) wake();
-      const over = event.target && event.target.closest ? event.target.closest(interactive) : null;
-      ring.classList.toggle('is-hover', Boolean(over));
-    }, { passive: true });
 
-    document.addEventListener('mouseleave', sleep);
-    document.addEventListener('mouseenter', wake);
-    window.addEventListener('blur', sleep);
+      /* Stretch on the input event itself, not only inside the next frame, so a
+         fast flick reads as speed even if frames are being throttled. */
+      const gap = Math.min(Math.hypot(point.x - ringAt.x, point.y - ringAt.y), 90);
+      inner.style.setProperty('--sx', (1 + gap / 300).toFixed(3));
+      inner.style.setProperty('--sy', (1 - gap / 1100).toFixed(3));
 
-    document.addEventListener('mousedown', () => {
-      ring.classList.add('is-down');
-      ripple();
+      const target = event.target;
+      if (!target || !target.closest) return;
+      ring.classList.toggle('is-hover', Boolean(target.closest(interactive)));
+      ring.classList.toggle('is-field', Boolean(target.closest(fields)));
+    }
+
+    /* pointerrawupdate fires faster than pointermove, so the point stays glued to
+       fast flicks instead of stepping between frames. */
+    const moves = 'onpointerrawupdate' in window ? ['pointerrawupdate', 'pointermove'] : ['pointermove'];
+    moves.forEach((name) => document.addEventListener(name, track, { passive: true, signal }));
+
+    document.addEventListener(
+      'pointerdown',
+      () => {
+        ring.classList.add('is-down');
+        ripple();
+      },
+      { signal },
+    );
+    document.addEventListener('pointerup', () => ring.classList.remove('is-down'), { signal });
+    document.addEventListener('pointerleave', sleep, { signal });
+    window.addEventListener('blur', sleep, { signal });
+
+    function teardown() {
+      window.cancelAnimationFrame(frame);
+      controller.abort();
+      ring.remove();
+      dot.remove();
+      document.documentElement.classList.remove('lnf-cursor-on');
+    }
+    fine.addEventListener('change', () => {
+      if (!fine.matches) teardown();
     });
-    document.addEventListener('mouseup', () => ring.classList.remove('is-down'));
+    calm.addEventListener('change', () => {
+      if (calm.matches) teardown();
+    });
   }
 
   /* Sections and cards rise into place once, staggered a little, as they scroll in. */

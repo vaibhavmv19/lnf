@@ -1795,7 +1795,18 @@ img, video, canvas { height: auto; max-width: 100%; }
   transition: opacity 0.22s ease;
 }
 
+/* The middle layer carries the velocity stretch set from JS (--sx / --sy), so the
+   glow itself can still scale for hover and press without fighting it. */
 .lnf-cursor-ring > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--sx, 1)) scaleY(var(--sy, 1));
+  transition: transform 0.1s linear;
+  will-change: transform;
+}
+
+.lnf-cursor-ring > i > b {
   display: block;
   width: 100%;
   height: 100%;
@@ -1805,21 +1816,38 @@ img, video, canvas { height: auto; max-width: 100%; }
   background: rgba(255, 255, 255, 0.05);
   box-shadow: 0 0 22px rgba(255, 255, 255, 0.2), inset 0 0 14px rgba(255, 255, 255, 0.1);
   transition: transform 0.26s cubic-bezier(0.22, 0.65, 0.35, 1),
-    border-color 0.26s ease, box-shadow 0.26s ease, background-color 0.26s ease;
+    border-color 0.26s ease, box-shadow 0.26s ease, background-color 0.26s ease, opacity 0.26s ease;
 }
 
 .lnf-cursor-dot.is-live,
 .lnf-cursor-ring.is-live { opacity: 1; }
 
-.lnf-cursor-ring.is-hover > i {
-  transform: scale(1.5);
+.lnf-cursor-ring.is-hover > i > b {
+  transform: scale(1.45);
   border-color: rgba(255, 255, 255, 0.42);
   background: rgba(255, 255, 255, 0.09);
   box-shadow: 0 0 30px rgba(255, 255, 255, 0.34), inset 0 0 18px rgba(255, 255, 255, 0.18);
 }
 
-.lnf-cursor-ring.is-down > i { transform: scale(0.8); }
-.lnf-cursor-ring.is-hover.is-down > i { transform: scale(1.32); }
+/* Text fields keep their own caret, so the ring steps back instead of duplicating
+   a pointer on top of one. */
+.lnf-cursor-ring.is-field > i > b {
+  transform: scale(0.62);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: transparent;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.16);
+}
+
+.lnf-cursor-ring.is-down > i > b { transform: scale(0.82); }
+.lnf-cursor-ring.is-hover.is-down > i > b { transform: scale(1.28); }
+
+/* Resting pointer: the ring breathes instead of freezing. */
+.lnf-cursor-ring.is-idle > i > b { animation: lnfCursorBreath 2.6s ease-in-out infinite; }
+
+@keyframes lnfCursorBreath {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 255, 255, 0.16); }
+  50% { transform: scale(1.09); box-shadow: 0 0 32px rgba(255, 255, 255, 0.3); }
+}
 
 /* Click ripple, spawned at the pointer and removed when it finishes. */
 .lnf-cursor-pulse {
@@ -1850,6 +1878,11 @@ html.lnf-cursor-on textarea,
 html.lnf-cursor-on label,
 html.lnf-cursor-on summary,
 html.lnf-cursor-on [role='button'] { cursor: none; }
+
+/* Typing needs a real caret; the custom point must not hide it. */
+html.lnf-cursor-on input,
+html.lnf-cursor-on textarea,
+html.lnf-cursor-on select { cursor: auto; }
 
 /* --- scroll progress bar ------------------------------------------------ */
 
@@ -2296,4 +2329,62 @@ p, .hero-lead, .section-head p, .step p, .card-title { text-wrap: pretty; }
   .nav-search:not(.nav-mobile-search) { display: none; }
   .nav { gap: 8px; }
   .brand { font-size: 16px; }
+}
+
+/* =====================================================================
+   Responsive pass — grids that fold on their own, plus small-screen trim.
+   ===================================================================== */
+
+/* auto-fit grids: three across, then two, then one, with no extra breakpoints */
+.steps { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.admin-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+.stat-row { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+
+h1, h2 { text-wrap: balance; }
+
+@media (min-width: 721px) and (max-width: 1024px) {
+  .masonry { column-count: 3; }
+}
+
+@media (max-width: 720px) {
+  .modal { width: calc(100vw - 24px); max-height: 88dvh; }
+  .filters-row .select { min-width: 128px; }
+}
+
+@media (max-width: 480px) {
+  /* The post action becomes an icon so the header never wraps. */
+  .nav-actions .post-label { display: none; }
+  .nav-actions .btn-primary { width: 38px; padding: 0; }
+  .nav-actions { gap: 6px; }
+  .page-head { padding-top: 18px; }
+  .panel-body { padding: 16px 14px; }
+}
+
+@media (max-width: 380px) {
+  .masonry { column-gap: 10px; }
+  .masonry > * { margin-bottom: 10px; }
+  .card-body { padding: 11px 11px 12px; }
+}
+
+/* Landscape phones: the hero must not swallow the viewport. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .hero-collage { display: none; }
+  .hero-grid { padding-top: 18px; padding-bottom: 22px; }
+  .hero-stats { margin-top: 16px; }
+  .hero h1 { font-size: clamp(26px, 4vw, 34px); }
+}
+
+/* Very wide screens: keep the measure readable instead of stretched. */
+@media (min-width: 1800px) {
+  .hero h1 { font-size: 64px; }
+  .hero-lead { max-width: 54ch; font-size: 17px; }
+  .section-head p, .step p, .card-title { max-width: 60ch; }
+}
+
+/* Touch devices get comfortably large hit areas. */
+@media (pointer: coarse) {
+  .icon-btn { width: 44px; height: 44px; }
+  .nav-link { padding: 11px 12px; }
+  .chip { min-height: 40px; }
+  .card-media .save-btn { width: 40px; height: 40px; }
 }
