@@ -2342,10 +2342,6 @@ p, .hero-lead, .section-head p, .step p, .card-title { text-wrap: pretty; }
 
 h1, h2 { text-wrap: balance; }
 
-@media (min-width: 721px) and (max-width: 1024px) {
-  .masonry { column-count: 3; }
-}
-
 @media (max-width: 720px) {
   .modal { width: calc(100vw - 24px); max-height: 88dvh; }
   .filters-row .select { min-width: 128px; }
@@ -2364,6 +2360,16 @@ h1, h2 { text-wrap: balance; }
   .masonry { column-gap: 10px; }
   .masonry > * { margin-bottom: 10px; }
   .card-body { padding: 11px 11px 12px; }
+}
+
+/* Smallest phones: trim the hero so the first cards peek above the fold. */
+@media (max-width: 400px) {
+  .hero-grid { padding: 16px 14px 22px; }
+  .hero-lead { font-size: 14px; line-height: 1.56; }
+  .eyebrow { font-size: 11.5px; padding: 4px 10px; }
+  .hero-collage { height: 118px; }
+  .hero-stats { gap: 12px 0; }
+  .hero-search .btn { padding: 0 12px; }
 }
 
 /* Landscape phones: the hero must not swallow the viewport. */
