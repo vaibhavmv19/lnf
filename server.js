@@ -61,7 +61,7 @@ const STATIC_PREFIXES = ['/css/', '/js/', '/uploads/', '/assets/'];
 const SECURITY_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "img-src 'self' data: blob: https://*.googleusercontent.com https://*.supabase.co",
+    "img-src 'self' data: blob: https://*.googleusercontent.com https://*.amazonaws.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "script-src 'self'",
