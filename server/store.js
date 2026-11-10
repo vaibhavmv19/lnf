@@ -264,8 +264,7 @@ async function writeMetaRds(meta) {
 
 /* ---------------------------- Amazon S3 ---------------------------- */
 
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 let s3Client = null;
 
@@ -304,14 +303,13 @@ async function putPhoto(buffer, ext, contentType) {
     Body: buffer,
     ContentType: contentType || 'image/jpeg',
     CacheControl: 'max-age=31536000',
-    ACL: 'public-read',
   });
 
   try {
     await client.send(putCommand);
-    const getCommand = new GetObjectCommand({ Bucket: PHOTO_BUCKET, Key: name });
-    const url = await getSignedUrl(client, getCommand, { expiresIn: 31536000 });
-    return url;
+    // A presigned URL would stop working when the task role credentials rotate,
+    // so photos get a stable object URL and the bucket policy allows reads.
+    return `https://${PHOTO_BUCKET}.s3.${S3_REGION}.amazonaws.com/${name}`;
   } catch (error) {
     console.warn('[uploads] S3 upload failed, using disk fallback:', error.message);
     try {

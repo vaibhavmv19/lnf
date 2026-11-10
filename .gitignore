@@ -2,8 +2,10 @@
 node_modules/
 
 # Secrets / local env
-.env.local
-.env.*.local
+.env
+.env.*
+!.env.example
+!deploy/aws/.env.aws.example
 
 # Runtime / local data
 data/db.json
@@ -21,6 +23,8 @@ Thumbs.db
 
 # Local tooling / artifacts
 .freebuff/
+deploy/aws/.env.aws
+deploy/aws/.service-arn
 google-verify.pl
 serve-local.pl
 

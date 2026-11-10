@@ -19,3 +19,9 @@ Dockerfile
 render.yaml
 Procfile
 README.hosting.md
+deploy
+*.md
+.env.aws
+.service-arn
+vercel.json
+supabase_schema.sql
