@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Runtime / local data
+data/db.json
+data/db.json.tmp
+public/uploads/
+*.log
+.server.pid
+.server.log
+server.log
+cookies.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local tooling / artifacts
+.freebuff/
+deploy/aws/.env.aws
+deploy/aws/.service-arn
+google-verify.pl
+serve-local.pl
+
+# Legacy extraction leftovers
+extracted_project/
+
+*.pid
+_orig/
